@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 
-def find_and_fit_lanes(binary_warped, visualize = False):
+def find_new(binary_warped, visualize = False):
     # Assuming you have created a warped binary image called "binary_warped"
     # Take a histogram of the bottom half of the image
     histogram = np.sum(binary_warped[binary_warped.shape[0]/2:,:], axis=0)
@@ -82,11 +82,17 @@ def find_and_fit_lanes(binary_warped, visualize = False):
     rightx = nonzerox[right_lane_inds]
     righty = nonzeroy[right_lane_inds]
 
-    print("leftx: ", leftx.shape)
-    print("lefty: ", lefty.shape)
+    # print("leftx: ", leftx.shape)
+    # print("lefty: ", lefty.shape)
 
-    print("rightx: ", rightx.shape)
-    print("righty: ", righty.shape)
+    # print("rightx: ", rightx.shape)
+    # print("righty: ", righty.shape)
+
+    # print("rightx[-1]: ", rightx[-1])
+    # print("leftx[-1]: ", leftx[-1])
+
+    if len(leftx) == 0 or len(rightx) == 0:
+        return None
 
     # Fit a second order polynomial to each
     left_fit = np.polyfit(lefty, leftx, 2)
@@ -94,6 +100,8 @@ def find_and_fit_lanes(binary_warped, visualize = False):
 
     # Define y-value where we want radius of curvature
     # I'll choose the maximum y-value, corresponding to the bottom of the image
+    #print("linspace coords: ", binary_warped.shape[0]-1, binary_warped.shape[0])
+
     ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
     y_eval = np.max(ploty)
 
@@ -101,37 +109,7 @@ def find_and_fit_lanes(binary_warped, visualize = False):
     left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
     right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
 
-    # calculate radius of curvature
-    left_curverad = ((1 + (2*left_fit[0]*y_eval + left_fit[1])**2)**1.5) / np.absolute(2*left_fit[0])
-
-    right_curverad = ((1 + (2*right_fit[0]*y_eval + right_fit[1])**2)**1.5) / np.absolute(2*right_fit[0])
-
-    print(left_curverad, 'p', right_curverad, 'p')
-
-    # repeat calculation converting from pixel space to world space (meters)
-
-    # Define conversions in x and y from pixels space to meters
-    ym_per_pix = 30/720 # meters per pixel in y dimension
-    xm_per_pix = 3.7/700 # meters per pixel in x dimension
-
-    print("ploty", ploty.shape)
-
-    left_fit_cr = np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2)
-    right_fit_cr = np.polyfit(righty*ym_per_pix, rightx*xm_per_pix, 2)
-
-    # Calculate the new radii of curvature
-    left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
-
-    right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
-
-    # Now our radius of curvature is in meters
-    print(left_curverad, 'm', right_curverad, 'm')
-
-    # calculate center
-    image_center = binary_warped.shape[0] / 2
-    lines_center = (right_fitx[0] - left_fitx[0]) / 2
-    center_diff = image_center - lines_center
-    center_diff = xm_per_pix * center_diff
+    left_curverad, right_curverad, center_diff = calculate_curvature_and_center_diff(leftx, lefty, rightx, righty, left_fit, right_fit, left_fitx, right_fitx, binary_warped)
 
     if visualize:
         out_img[nonzeroy[left_lane_inds], nonzerox[left_lane_inds]] = [255, 0, 0]
@@ -144,9 +122,21 @@ def find_and_fit_lanes(binary_warped, visualize = False):
         plt.xlim(0, 1280)
         plt.ylim(720, 0)
 
-    return left_fit, right_fit, left_curverad, right_curverad, center_diff
+    fit_result = {'left_fit': left_fit,
+                  'right_fit': right_fit,
+                  'left_fitx': left_fitx,
+                  'right_fitx': right_fitx,
+                  'left_curverad': left_curverad,
+                  'right_curverad': right_curverad,
+                  'center_diff': center_diff,
+                  'leftx': leftx,
+                  'lefty': lefty,
+                  'rightx': rightx,
+                  'righty': righty}
 
-def find_lines_from_previous_position(binary_warped, left_fit, right_fit, visualize = False):
+    return fit_result
+
+def find_from_previous(binary_warped, left_fit, right_fit, visualize = False):
     # Assume you now have a new warped binary image
     # from the next frame of video (also called "binary_warped")
     # It's now much easier to find line pixels!
@@ -167,6 +157,9 @@ def find_lines_from_previous_position(binary_warped, left_fit, right_fit, visual
     rightx = nonzerox[right_lane_inds]
     righty = nonzeroy[right_lane_inds]
 
+    if len(leftx) == 0 or len(rightx) == 0:
+        return None
+
     # Fit a second order polynomial to each
     left_fit = np.polyfit(lefty, leftx, 2)
     right_fit = np.polyfit(righty, rightx, 2)
@@ -175,6 +168,8 @@ def find_lines_from_previous_position(binary_warped, left_fit, right_fit, visual
     ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
     left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
     right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
+
+    left_curverad, right_curverad, center_diff = calculate_curvature_and_center_diff(leftx, lefty, rightx, righty, left_fit, right_fit, left_fitx, right_fitx, binary_warped)
 
     if visualize:
         # Create an image to draw on and an image to show the selection window
@@ -211,5 +206,55 @@ def find_lines_from_previous_position(binary_warped, left_fit, right_fit, visual
         plt.xlim(0, 1280)
         plt.ylim(720, 0)
 
-    return left_fit, right_fit
+    fit_result = {'left_fit': left_fit,
+                  'right_fit': right_fit,
+                  'left_fitx': left_fitx,
+                  'right_fitx': right_fitx,
+                  'left_curverad': left_curverad,
+                  'right_curverad': right_curverad,
+                  'center_diff': center_diff,
+                  'leftx': leftx,
+                  'lefty': lefty,
+                  'rightx': rightx,
+                  'righty': righty}
 
+    return fit_result
+
+def calculate_curvature_and_center_diff(leftx, lefty, rightx, righty, left_fit, right_fit, left_fitx, right_fitx, binary_warped):
+
+    ploty = np.linspace(0, binary_warped.shape[0]-1, binary_warped.shape[0] )
+    y_eval = np.max(ploty)
+
+    # calculate radius of curvature
+    left_curverad = ((1 + (2*left_fit[0]*y_eval + left_fit[1])**2)**1.5) / np.absolute(2*left_fit[0])
+
+    right_curverad = ((1 + (2*right_fit[0]*y_eval + right_fit[1])**2)**1.5) / np.absolute(2*right_fit[0])
+
+    #print("left_curverad, right_curverad, ", left_curverad, 'p', right_curverad, 'p')
+
+    # repeat calculation converting from pixel space to world space (meters)
+
+    # Define conversions in x and y from pixels space to meters
+    ym_per_pix = 30/720 # meters per pixel in y dimension
+    xm_per_pix = 3.7/700 # meters per pixel in x dimension
+
+    # print("ploty", ploty.shape)
+
+    left_fit_cr = np.polyfit(lefty*ym_per_pix, leftx*xm_per_pix, 2)
+    right_fit_cr = np.polyfit(righty*ym_per_pix, rightx*xm_per_pix, 2)
+
+    # Calculate the new radii of curvature
+    left_curverad = ((1 + (2*left_fit_cr[0]*y_eval*ym_per_pix + left_fit_cr[1])**2)**1.5) / np.absolute(2*left_fit_cr[0])
+
+    right_curverad = ((1 + (2*right_fit_cr[0]*y_eval*ym_per_pix + right_fit_cr[1])**2)**1.5) / np.absolute(2*right_fit_cr[0])
+
+    # Now our radius of curvature is in meters
+    # print(left_curverad, 'm', right_curverad, 'm')
+
+    # calculate center
+    image_center = binary_warped.shape[0] / 2
+    lines_center = (right_fitx[0] - left_fitx[0]) / 2
+    center_diff = image_center - lines_center
+    center_diff = xm_per_pix * center_diff
+
+    return left_curverad, right_curverad, center_diff

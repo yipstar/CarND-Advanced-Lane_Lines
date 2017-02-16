@@ -73,6 +73,45 @@ def color_thresh(img, channel=2, color_cvt=cv2.COLOR_RGB2HLS, thresh=(170, 255))
 
     return color_binary
 
+def hsv_color_thresh(img, thresh=(50, 100)):
+    hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+    h = hsv[:, :, 1]
+    return h
+
+    # color_binary = np.zeros_like(h)
+    # color_binary[(h > thresh[0]) & (h <= thresh[1])] = 1
+
+    # return color_binary
+
+def color_mask(img):
+
+    hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+
+    # create a mask for white
+    lower_white = np.array([20, 0, 180])
+    upper_white = np.array([255, 80, 255])
+    white_mask = cv2.inRange(hsv, lower_white, upper_white)
+
+    # create a mask for yellow, tricky to find the right yellow boundaries
+    lower_yellow = np.array([0, 100, 100])
+    upper_yellow = np.array([50, 255, 255])
+    yellow_mask = cv2.inRange(hsv, lower_yellow, upper_yellow)
+
+    # combine the masks
+    combined_mask = cv2.bitwise_or(white_mask, yellow_mask)
+
+    # mask the image
+    masked_image = cv2.bitwise_and(hsv, hsv, mask = combined_mask)
+
+    result = cv2.cvtColor(masked_image, cv2.COLOR_HSV2RGB)
+    # return result
+
+    result = cv2.cvtColor(masked_image, cv2.COLOR_RGB2GRAY)
+
+    binary = np.zeros_like(result)
+    binary[(result > 0) & (result <= 255)] = 1
+
+    return binary
 
 # result = pipeline(image)
 
