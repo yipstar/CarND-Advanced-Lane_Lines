@@ -43,7 +43,7 @@ def pipeline(img, mtx, dist, debug=False, use_color_mask=True):
     transformed_binary, M_inverse = perspective_transform(combined_binary)
 
     if debug:
-        return transformed_color_mask_binary
+        return transformed_binary
 
     # if globals.left_lane.iteration > globals.left_lane.n_fits:
     #     raise Exception('STOP')
