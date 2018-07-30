@@ -1,11 +1,15 @@
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 def find_new(binary_warped, visualize = False):
     # Assuming you have created a warped binary image called "binary_warped"
     # Take a histogram of the bottom half of the image
-    histogram = np.sum(binary_warped[binary_warped.shape[0]/2:,:], axis=0)
+
+    bottom_half_size = binary_warped.shape[0] / 2
+    # print("bottom_half_size: ", bottom_half_size)
+
+    histogram = np.sum(binary_warped[int(bottom_half_size):,:], axis=0)
 
     # Create an output image to draw on and visualize the result
     out_img = np.dstack((binary_warped, binary_warped, binary_warped))*255

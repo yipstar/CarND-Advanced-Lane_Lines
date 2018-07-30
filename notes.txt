@@ -4,3 +4,5 @@ Thanks :) took me quite some headaches to get something working well :)
 
 I am using the same masks on the challenges, mainly some gradients computation on rgb and hsl colors.
 The other important part in the pipeline is to use ransac regression for estimating the lanes. It is more robust in the case of noisy masks ;)  
+
+In addition to that, you may want to try extracting the R channel from the RGB space due to its high value for yellow and white pixels.
